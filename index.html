@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Class Notes Checker</title>
+<style>
+  :root {
+    --bg: #f7f6f2; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a64; --line: #e3e1da;
+    --accent: #1f4e79; --accent-ink: #ffffff;
+    --mech: #fde7b0; --mech-edge: #d9a51c;
+    --style: #d8e7fb; --style-edge: #4a86c8;
+    --review: #f3dcf0; --review-edge: #a855a0;
+    --ok: #2f7d4f; --ok-bg: #e2f2e8; --bad-bg: #f1f0ec;
+    --focus: #ff7a1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161614; --panel: #1f1f1c; --ink: #ecebe6; --muted: #a09e96; --line: #33322e;
+      --accent: #7fb2e5; --accent-ink: #10202f;
+      --mech: #5a4613; --mech-edge: #d9a51c;
+      --style: #1d3655; --style-edge: #6aa2de;
+      --review: #47233f; --review-edge: #c77cc0;
+      --ok: #7fd3a0; --ok-bg: #1f3a2a; --bad-bg: #2a2a26;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161614; --panel: #1f1f1c; --ink: #ecebe6; --muted: #a09e96; --line: #33322e;
+    --accent: #7fb2e5; --accent-ink: #10202f;
+    --mech: #5a4613; --mech-edge: #d9a51c;
+    --style: #1d3655; --style-edge: #6aa2de;
+    --review: #47233f; --review-edge: #c77cc0;
+    --ok: #7fd3a0; --ok-bg: #1f3a2a; --bad-bg: #2a2a26;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  header { padding: 20px 16px 8px; max-width: 1280px; margin: 0 auto; }
+  h1 { font: 600 24px/1.2 Georgia, "Times New Roman", serif; margin: 0 0 4px; }
+  header p { margin: 0; color: var(--muted); max-width: 70ch; }
+  main { max-width: 1280px; margin: 0 auto; padding: 12px 16px 40px; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+  @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .toolbar .spacer { flex: 1; }
+  button, .btn { font: inherit; font-size: 14px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 6px 12px; border-radius: 7px; cursor: pointer; }
+  button:hover { border-color: var(--muted); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button:focus-visible, mark:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  button:disabled { opacity: .5; cursor: default; }
+  textarea { display: block; width: 100%; min-height: 60vh; border: 0; padding: 16px; font: 15px/1.6 Georgia, "Times New Roman", serif; color: var(--ink); background: transparent; resize: vertical; }
+  textarea:focus { outline: none; }
+  #doc { padding: 16px; font: 15px/1.7 Georgia, "Times New Roman", serif; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 60vh; }
+  mark { background: transparent; color: inherit; border-bottom: 2px solid; cursor: pointer; border-radius: 2px; padding: 0 1px; }
+  mark.g-Mechanical { background: var(--mech); border-color: var(--mech-edge); }
+  mark.g-Style { background: var(--style); border-color: var(--style-edge); }
+  mark.g-Review { background: var(--review); border-color: var(--review-edge); }
+  mark.accepted { background: var(--ok-bg); border-color: var(--ok); }
+  mark.accepted .orig { text-decoration: line-through; opacity: .55; }
+  mark.accepted .new { color: var(--ok); font-weight: 600; }
+  mark.ignored { background: transparent; border-bottom: 1px dotted var(--line); }
+  mark.current { outline: 2px solid var(--focus); }
+  .empty-mark { display: inline-block; min-width: 6px; }
+  aside { position: sticky; top: 12px; display: flex; flex-direction: column; gap: 12px; max-height: calc(100vh - 24px); }
+  @media (max-width: 900px) {
+    aside { position: static; max-height: none; }
+    /* On a phone the flag detail sits as a sheet at the bottom so it stays next to the text. */
+    #detail { position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 10; max-height: 45vh; overflow: auto; box-shadow: 0 6px 24px rgba(0,0,0,.25); }
+    body { padding-bottom: 45vh; }
+  }
+  .card { padding: 14px; }
+  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+  .stats { display: flex; gap: 14px; flex-wrap: wrap; }
+  .stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--muted); font-size: 12px; }
+  #detail .rule-name { font-weight: 600; margin-bottom: 2px; }
+  #detail .explain { color: var(--muted); font-size: 13px; margin: 4px 0 10px; }
+  #detail .change { font: 15px Georgia, serif; background: var(--bad-bg); padding: 8px 10px; border-radius: 6px; margin-bottom: 10px; overflow-wrap: anywhere; }
+  #detail .change del { color: #b3261e; }
+  #detail .change ins { color: var(--ok); text-decoration: none; font-weight: 600; }
+  #detail .note { font-size: 13px; margin: 0 0 10px; }
+  #detail .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .rules { overflow: auto; min-height: 120px; }
+  .rule-row { display: grid; grid-template-columns: 12px 1fr auto; gap: 8px; align-items: center; padding: 6px 4px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  .rule-row:hover { background: var(--bg); }
+  .rule-row.off { opacity: .45; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot.g-Mechanical { background: var(--mech-edge); }
+  .dot.g-Style { background: var(--style-edge); }
+  .dot.g-Review { background: var(--review-edge); }
+  .count { font-variant-numeric: tabular-nums; color: var(--muted); }
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .warn { padding: 10px 12px; border-left: 3px solid var(--review-edge); background: var(--review); border-radius: 6px; margin: 12px 12px 0; font-size: 14px; }
+  .manual li { margin-bottom: 4px; font-size: 14px; }
+  .manual ul { padding-left: 18px; margin: 0; }
+  label.opt { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; color: var(--muted); }
+  .hint { color: var(--muted); font-size: 13px; }
+  .hidden { display: none !important; }
+  footer { max-width: 1280px; margin: 0 auto; padding: 0 16px 32px; color: var(--muted); font-size: 13px; }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Class Notes Checker</h1>
+  <p>Paste a batch of Class Notes and check it against the <em>Chronicle</em> style guide. Each flag shows the rule it breaks and a suggested fix. You make the final call on every one.</p>
+</header>
+
+<main>
+  <section class="panel" aria-label="Class Notes text">
+    <div class="toolbar">
+      <button class="primary" id="checkBtn">Check</button>
+      <button id="editBtn" class="hidden">Edit text</button>
+      <button id="sampleBtn">Load sample</button>
+      <label class="opt"><input type="checkbox" id="optional"> Suggest NYC / LA</label>
+      <span class="spacer"></span>
+      <button id="prevBtn" class="hidden" title="Previous flag (k)">↑ Prev</button>
+      <button id="nextBtn" class="hidden" title="Next flag (j)">↓ Next</button>
+      <button id="copyBtn" class="hidden">Copy corrected text</button>
+    </div>
+    <div id="warnings"></div>
+    <textarea id="input" spellcheck="true" placeholder="Paste Class Notes here. Keep each class year on its own line (e.g. “57”) so the word count is per class."></textarea>
+    <div id="doc" class="hidden" tabindex="-1"></div>
+  </section>
+
+  <aside>
+    <div class="panel card" id="summary">
+      <h2>Summary</h2>
+      <div class="stats">
+        <div class="stat"><b id="sFlags">–</b><span>flags</span></div>
+        <div class="stat"><b id="sAccepted">0</b><span>accepted</span></div>
+        <div class="stat"><b id="sIgnored">0</b><span>ignored</span></div>
+        <div class="stat"><b id="sWords">–</b><span>words</span></div>
+      </div>
+      <div class="legend">
+        <span><i class="dot g-Mechanical"></i>Mechanical</span>
+        <span><i class="dot g-Style"></i>Style</span>
+        <span><i class="dot g-Review"></i>Editor review</span>
+      </div>
+    </div>
+
+    <div class="panel card hidden" id="detail" aria-live="polite"></div>
+
+    <div class="panel card rules">
+      <h2>Rules <span class="hint">(click to show or hide)</span></h2>
+      <div id="ruleList"></div>
+    </div>
+
+    <div class="panel card manual">
+      <h2>Still check by hand</h2>
+      <ul>
+        <li><b>Bold</b> each alum’s name on first mention; no class year for the class being reported on.</li>
+        <li>Spelling of names and places.</li>
+        <li>Place names include a state, province or country (major cities stand alone).</li>
+        <li>Titles in quotes, not italics; newspapers and magazines in neither.</li>
+        <li>Tone, unclear names and sensitive news.</li>
+      </ul>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  Rules come from <a href="STYLE_GUIDE.md">the Class Notes style guide</a>. Nothing you paste leaves this page.
+</footer>
+
+<script src="checker.js"></script>
+<script>
+(function () {
+  "use strict";
+  const C = window.ClassNotesChecker;
+  const RULES = Object.fromEntries(C.RULES.map((r) => [r.id, r]));
+  const $ = (id) => document.getElementById(id);
+  const input = $("input"), doc = $("doc"), detail = $("detail");
+
+  let text = "";
+  let issues = [];          // { ...issue, id, state: "open" | "accepted" | "ignored" }
+  let hiddenRules = new Set();
+  let current = -1;
+
+  const SAMPLE = [
+    "57",
+    "Pat Example",
+    "pat@example.com",
+    "",
+    "Great to hear from so many of you!  Chris Sample ‘57 writes from Newark, NJ that he and his wife Dana celebrated their 50th anniversary on May 15th with 3 grandchildren, a cake, and a boat ride. Chris earned his PhD in History at Rutgers and is now Professor of history there.",
+    "Lee Placeholder will attend our 70th reunion in June. Lee moved to Austin, TX last year and says the west coast was never for him. “It’s been a wonderful year.",
+    "Our numbers are dwindling, so please e-mail me your news. On June 1 2026 we met in New York City for lunch with twelve classmates and their two-year-old great-grandson.",
+  ].join("\n");
+
+  function esc(s) {
+    return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  }
+
+  // Keep one flag per span: drop any flag that overlaps an earlier, longer one.
+  function nonOverlapping(list) {
+    const out = [];
+    let end = -1;
+    for (const x of list) {
+      if (x.start < end) continue;
+      out.push(x);
+      end = Math.max(end, x.end === x.start ? x.end + 1 : x.end);
+    }
+    return out;
+  }
+
+  function run() {
+    text = input.value.replace(/\r\n?/g, "\n");
+    if (!text.trim()) { input.focus(); return; }
+    const result = C.check(text, { includeOptional: $("optional").checked });
+    issues = nonOverlapping(result.issues).map((x, i) => ({ ...x, id: i, state: "open" }));
+    $("sWords").textContent = result.words.toLocaleString();
+    const w = $("warnings");
+    w.innerHTML = result.longSections.map((s) =>
+      `<div class="warn"><b>Word count:</b> the ${esc(s.label)} section is ${s.words.toLocaleString()} words, over the ${C.WORD_LIMIT.toLocaleString()}-word limit. Flag it for the editor.</div>`).join("");
+    current = -1;
+    input.classList.add("hidden");
+    doc.classList.remove("hidden");
+    ["editBtn", "prevBtn", "nextBtn", "copyBtn"].forEach((b) => $(b).classList.remove("hidden"));
+    $("checkBtn").classList.add("hidden");
+    render();
+    renderRules();
+    showDetail(null);
+  }
+
+  function visible(x) { return !hiddenRules.has(x.rule); }
+
+  function render() {
+    let html = "", pos = 0;
+    for (const x of issues) {
+      if (!visible(x)) continue;
+      html += esc(text.slice(pos, x.start));
+      const r = RULES[x.rule];
+      const cls = `g-${r.group} ${x.state === "open" ? "" : x.state} ${x.id === current ? "current" : ""}`;
+      const orig = text.slice(x.start, x.end);
+      let inner;
+      if (x.state === "accepted" && x.fix !== undefined) {
+        inner = (orig ? `<span class="orig">${esc(orig)}</span>` : "") + `<span class="new">${esc(x.fix)}</span>`;
+      } else {
+        inner = orig ? esc(orig) : `<span class="empty-mark"></span>`;
+      }
+      html += `<mark class="${cls}" data-id="${x.id}" tabindex="0" title="${esc(r.name)}">${inner}</mark>`;
+      pos = x.end;
+    }
+    html += esc(text.slice(pos));
+    doc.innerHTML = html;
+    updateStats();
+  }
+
+  function updateStats() {
+    const vis = issues.filter(visible);
+    $("sFlags").textContent = vis.length;
+    $("sAccepted").textContent = issues.filter((x) => x.state === "accepted").length;
+    $("sIgnored").textContent = issues.filter((x) => x.state === "ignored").length;
+  }
+
+  function renderRules() {
+    const counts = {};
+    for (const x of issues) counts[x.rule] = (counts[x.rule] || 0) + 1;
+    const order = { Mechanical: 0, Style: 1, Review: 2 };
+    const rows = C.RULES.filter((r) => counts[r.id]).sort((a, b) => order[a.group] - order[b.group] || counts[b.id] - counts[a.id]);
+    $("ruleList").innerHTML = rows.length ? rows.map((r) =>
+      `<div class="rule-row ${hiddenRules.has(r.id) ? "off" : ""}" data-rule="${r.id}" role="button" tabindex="0" title="${esc(r.explain)}">
+        <i class="dot g-${r.group}"></i><span>${esc(r.name)}</span><span class="count">${counts[r.id]}</span></div>`).join("")
+      : `<p class="hint">${issues.length || !text ? "No flags." : ""}</p>`;
+  }
+
+  function showDetail(x) {
+    document.querySelectorAll("mark.current").forEach((m) => m.classList.remove("current"));
+    if (!x) {
+      detail.classList.toggle("hidden", !text);
+      detail.innerHTML = text ? `<p class="hint">${issues.length ? "Click a highlight, or press <b>j</b> / <b>k</b> to step through flags. <b>a</b> accepts, <b>i</b> ignores." : "No rule-based errors found. Still check the items below by hand."}</p>` : "";
+      return;
+    }
+    current = x.id;
+    const r = RULES[x.rule];
+    const orig = text.slice(x.start, x.end);
+    const ctxBefore = text.slice(Math.max(0, x.start - 30), x.start).replace(/^\S*\s/, "…");
+    const ctxAfter = text.slice(x.end, x.end + 30).replace(/\s\S*$/, "…");
+    const change = x.fix !== undefined
+      ? `${esc(ctxBefore)}<del>${esc(orig) || "&nbsp;"}</del><ins>${esc(x.fix) || ""}</ins>${esc(ctxAfter)}`
+      : `${esc(ctxBefore)}<b>${esc(orig)}</b>${esc(ctxAfter)}`;
+    const sameRuleOpen = issues.filter((y) => y.rule === x.rule && y.state === "open" && y.fix !== undefined).length;
+    detail.classList.remove("hidden");
+    detail.innerHTML = `
+      <h2>${esc(r.group === "Review" ? "Editor review" : r.group)}</h2>
+      <div class="rule-name">${esc(r.name)}</div>
+      <div class="explain">${esc(r.explain)}</div>
+      <div class="change">${change}</div>
+      ${x.note ? `<p class="note">${esc(x.note)}</p>` : ""}
+      ${x.fix === undefined ? `<p class="note hint">No automatic fix: edit this one yourself.</p>` : ""}
+      <div class="actions">
+        ${x.fix !== undefined ? `<button class="primary" data-act="accept" ${x.state === "accepted" ? "disabled" : ""}>Accept</button>` : ""}
+        <button data-act="ignore" ${x.state === "ignored" ? "disabled" : ""}>${x.fix === undefined ? "Done" : "Ignore"}</button>
+        ${x.state !== "open" ? `<button data-act="reset">Undo</button>` : ""}
+        ${sameRuleOpen > 1 && x.fix !== undefined ? `<button data-act="acceptAll">Accept all ${sameRuleOpen} like this</button>` : ""}
+      </div>`;
+    const m = doc.querySelector(`mark[data-id="${x.id}"]`);
+    if (m) { m.classList.add("current"); m.scrollIntoView({ block: "center", behavior: "smooth" }); }
+  }
+
+  function step(dir) {
+    const vis = issues.filter(visible);
+    if (!vis.length) return;
+    const open = vis.filter((x) => x.state === "open");
+    const pool = open.length ? open : vis;
+    let idx = pool.findIndex((x) => dir > 0 ? x.id > current : false);
+    if (dir < 0) { for (let i = pool.length - 1; i >= 0; i--) if (pool[i].id < current) { idx = i; break; } }
+    if (idx < 0) idx = dir > 0 ? 0 : pool.length - 1;
+    showDetail(pool[idx]);
+  }
+
+  function act(kind) {
+    const x = issues[current];
+    if (!x) return;
+    if (kind === "accept" && x.fix !== undefined) x.state = "accepted";
+    else if (kind === "ignore") x.state = "ignored";
+    else if (kind === "reset") x.state = "open";
+    else if (kind === "acceptAll") issues.forEach((y) => { if (y.rule === x.rule && y.state === "open" && y.fix !== undefined) y.state = "accepted"; });
+    render();
+    if (kind === "reset") showDetail(x); else step(1);
+  }
+
+  function correctedText() {
+    return C.applyFixes(text, issues.filter((x) => x.state === "accepted"));
+  }
+
+  $("checkBtn").addEventListener("click", run);
+  $("editBtn").addEventListener("click", () => {
+    // Carry accepted fixes back into the editable text.
+    input.value = correctedText();
+    text = ""; issues = []; current = -1;
+    doc.classList.add("hidden"); input.classList.remove("hidden");
+    ["editBtn", "prevBtn", "nextBtn", "copyBtn"].forEach((b) => $(b).classList.add("hidden"));
+    $("checkBtn").classList.remove("hidden");
+    $("warnings").innerHTML = ""; detail.classList.add("hidden");
+    $("sFlags").textContent = "–"; $("sWords").textContent = "–";
+    renderRules(); updateStats(); input.focus();
+  });
+  $("sampleBtn").addEventListener("click", () => { input.value = SAMPLE; if (text) $("editBtn").click(); input.value = SAMPLE; run(); });
+  $("prevBtn").addEventListener("click", () => step(-1));
+  $("nextBtn").addEventListener("click", () => step(1));
+  $("copyBtn").addEventListener("click", async () => {
+    const out = correctedText();
+    try { await navigator.clipboard.writeText(out); flash("Copied"); }
+    catch { input.value = out; flash("Copy failed: use Edit text"); }
+  });
+  function flash(msg) {
+    const b = $("copyBtn"), old = b.textContent;
+    b.textContent = msg; setTimeout(() => (b.textContent = old), 1400);
+  }
+  doc.addEventListener("click", (e) => {
+    const m = e.target.closest("mark");
+    if (m) showDetail(issues[+m.dataset.id]);
+  });
+  doc.addEventListener("keydown", (e) => {
+    const m = e.target.closest && e.target.closest("mark");
+    if (m && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); showDetail(issues[+m.dataset.id]); }
+  });
+  detail.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-act]");
+    if (b) act(b.dataset.act);
+  });
+  $("ruleList").addEventListener("click", (e) => {
+    const row = e.target.closest(".rule-row");
+    if (!row) return;
+    const id = row.dataset.rule;
+    hiddenRules.has(id) ? hiddenRules.delete(id) : hiddenRules.add(id);
+    render(); renderRules();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (!text || e.target === input || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === "j") step(1);
+    else if (e.key === "k") step(-1);
+    else if (e.key === "a") act("accept");
+    else if (e.key === "i") act("ignore");
+    else if (e.key === "u") act("reset");
+  });
+  input.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") run();
+  });
+})();
+</script>
+</body>
+</html>
