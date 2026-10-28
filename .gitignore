@@ -1,0 +1,4 @@
+.DS_Store
+# Source issues and raw submissions contain alumni personal info; keep them out of the repo
+source-pdfs/
+*.pdf
