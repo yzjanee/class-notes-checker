@@ -140,12 +140,25 @@
     explain: "Use a single space between sentences.",
     find(t) {
       const out = [];
-      for (const m of matches(/([.!?:;,]["”’)]?)( {2,})(?=\S)/g, t)) {
+      // Pasted text often carries non-breaking spaces (\u00a0), so count those as spaces too.
+      for (const m of matches(/([.!?:;,]["”’)]?)([ \u00a0]{2,})(?=\S)/g, t)) {
         out.push(issue(this.id, m.index + m[1].length, m[2], " "));
       }
-      for (const m of matches(/(?<=\S) {2,}(?=\S)/g, t)) {
-        if (/[.!?:;,]["”’)]?$/.test(t.slice(0, m.index))) continue;
-        out.push(issue(this.id, m.index, m[0], " ", "Extra spaces between words."));
+      return out;
+    },
+  });
+
+  rule({
+    id: "extra-space",
+    name: "Extra spaces",
+    group: "Mechanical",
+    explain: "Use one space between words, including around a dash.",
+    find(t) {
+      const out = [];
+      for (const m of matches(/(?<=\S)[ \u00a0]{2,}(?=\S)/g, t)) {
+        if (/[.!?:;,]["”’)]?$/.test(t.slice(0, m.index))) continue; // the one-space-after-periods rule
+        const dash = /[—–]$/.test(t.slice(0, m.index)) || /^[—–]/.test(t.slice(m.index + m[0].length));
+        out.push(issue(this.id, m.index, m[0], " ", dash ? "Extra space next to a dash." : null));
       }
       return out;
     },
@@ -404,7 +417,16 @@
         if (/ Reunion$/.test(m[0])) continue;
         out.push(issue(this.id, m.index, m[0], m[0].replace(/reunion$/, "Reunion")));
       }
+      // "Reunion Weekend" is not a numbered Reunion, so both words come down: "reunion weekend".
+      for (const m of matches(/\b([Rr]eunion) ([Ww]eekend)\b/g, t)) {
+        const before = t.slice(Math.max(0, m.index - 30), m.index);
+        if (/(?:\d{1,2}(?:st|nd|rd|th)|(?:fifth|tenth|fifteenth|twentieth|thirtieth|fortieth|fiftieth|sixtieth|seventieth|seventy-fifth|eightieth|sixty-fifth|fifty-fifth|forty-fifth|thirty-fifth|twenty-fifth))\s+(?:[A-Z][\w’'-]*\s+)?$/i.test(before)) continue;
+        const fix = (atSentenceStart(t, m.index) ? "Reunion" : "reunion") + " weekend";
+        if (fix === m[0]) continue;
+        out.push(issue(this.id, m.index, m[0], fix, "Lowercase both words unless it’s a specific numbered Reunion. Peddie’s event is Alumni Weekend, if that’s what is meant."));
+      }
       for (const m of matches(/\bReunion\b/g, t)) {
+        if (/^ [Ww]eekend\b/.test(t.slice(m.index + 7))) continue; // handled above
         const before = t.slice(Math.max(0, m.index - 30), m.index);
         if (/(?:\d{1,2}(?:st|nd|rd|th)|(?:fifth|tenth|fifteenth|twentieth|thirtieth|fortieth|fiftieth|sixtieth|seventieth|seventy-fifth|eightieth|sixty-fifth|fifty-fifth|forty-fifth|thirty-fifth|twenty-fifth))\s+(?:[A-Z][\w’'-]*\s+)?$/i.test(before)) continue;
         if (atSentenceStart(t, m.index)) continue;
@@ -500,7 +522,13 @@
           else if (c === "”") depth = Math.max(0, depth - 1);
           else if (c === '"') {
             // Straight quote: decide by context.
-            if (i === 0 || /[\s(\[—–-]/.test(p[i - 1])) { depth = 1; lastOpen = i; } else depth = 0;
+            // Straight quotes have no direction: one closes an open quote (even right after a dash, as in “I was going to—”), otherwise it opens one.
+            const opens = (i === 0 || /[\s(\[—–]/.test(p[i - 1])) && /[\w‘'….]/.test(p[i + 1] || "");
+            if (!opens) depth = Math.max(0, depth - 1);
+            else if (depth > 0) {
+              out.push(issue(this.id, pos + i, c, null, "A quote within a quote takes single quotes: “He told me, ‘Come home.’”"));
+              depth = 2;
+            } else { depth = 1; lastOpen = i; }
           } else if ((c === "‘" || (c === "'" && (i === 0 || /[\s(\[—–]/.test(p[i - 1])))) && depth === 0) {
             if (/\d/.test(p[i + 1] || "")) continue; // class year — another rule
             const close = p.slice(i + 1).search(/[’'](?=[\s.,;:!?)]|$)/);
@@ -634,11 +662,23 @@
         if (/^\d+$/.test(m[1])) continue;
         out.push(issue(this.id, m.index, m[0], m[1], "Repeated word."));
       }
-      for (const m of matches(/(?<=\w) +([,.;:!?])(?!\d|\.\.)/g, t)) {
+      for (const m of matches(/(?<=\w) +([,.;:!?])(?!\d|\.\.| \.)/g, t)) {
+        // "end of story . . ." is a spaced ellipsis, not a stray space.
+        if (m[1] === "." && /^ \./.test(t.slice(m.index + m[0].length))) continue;
         out.push(issue(this.id, m.index, m[0], m[1], "Space before punctuation."));
       }
-      for (const m of matches(/(?<!\.)([,;:])\1+|(?<![.\w])\.\.(?!\.)|(?<=\w)\.\.(?!\.)|,\.|\.,(?! )/g, t)) {
+      for (const m of matches(/(?<!\.)([,;:])\1+|(?<![.…])\.\.(?![.…])|,\.(?!\.)|\.,(?! )/g, t)) {
         if (/^\.,$/.test(m[0]) && /\b[A-Z]\.$|\b(?:Jr|Sr|Inc|Co|St|Dr|Mr|Mrs|Ms|Ltd|etc|a\.m|p\.m|Ph\.D|U\.S)$/.test(t.slice(Math.max(0, m.index - 5), m.index + 1))) continue;
+        if (/^\.,$/.test(m[0]) && /[.…]$/.test(t.slice(0, m.index))) continue; // "Well...,"
+        if (m[0] === "..") {
+          // Two periods: a typo for one period, or a short ellipsis. Only the editor can tell.
+          if (/^\.[A-Za-z]{2,}\b/.test(t.slice(m.index + 1)) || /[A-Z]\.$/.test(t.slice(Math.max(0, m.index - 2), m.index + 1))) {
+            out.push(issue(this.id, m.index, m[0], ".", "Doubled period after an abbreviation."));
+          } else {
+            out.push(issue(this.id, m.index, m[0], null, "Two periods: use one period, or a full ellipsis (...) if a pause was meant."));
+          }
+          continue;
+        }
         const fix = m[0].startsWith(",") ? "," : m[0][0];
         out.push(issue(this.id, m.index, m[0], fix, "Doubled punctuation."));
       }
@@ -646,6 +686,89 @@
       // Stray period in the middle of a sentence: "his wife, Carol. are doing well"
       for (const m of matches(/(?<=\b(?!(?:Mr|Mrs|Ms|Dr|St|Jr|Sr|Rev|Gen|Col|Capt|Lt|Sgt|Prof|Ave|Blvd|Mt|Ft)\.)[A-Z][a-z]{2,})\. (?=(?:are|is|was|were|and|have|has|who|which|to|of|in|on)\b)/g, t)) {
         out.push(issue(this.id, m.index, ".", ",", "A period mid-sentence (the next word is lowercase). Probably meant a comma."));
+      }
+      return out;
+    },
+  });
+
+  // Words that can start a capitalized run before a name but are not part of it.
+  const NOT_NAME = new Set(("The A An And But Or So In On At To From With By For Of As Also Then When While After Before " +
+    "Since During Recently Meanwhile Yesterday Today Last This That These Those Our My His Her Their Its Your We I He She They " +
+    "Dear Congratulations Congrats Thanks Thank Classmate Classmates Alumni Alumnus Alumna Peddie Hi Hello Greetings Both " +
+    "Please Here There Sadly Happily Finally Former Fellow Friend Friends Brother Sister Son Daughter Wife Husband Mr Mrs Ms Dr " +
+    "Coach Professor President Dean Rev Captain Judge Senator Gov Mayor Photo Pictured Left Right Above Below Back Front Row " +
+    "Athletic Director Head Executive Chairman Chair Founder Chief Assistant Associate Senior Junior Vice Principal Headmaster").split(" "));
+
+  const NAME_TOKEN = String.raw`(?:[A-Z][a-zA-Z’'\-]*\.?|\([A-Z][a-zA-Z’'\-]*\)|[“"][A-Z][a-zA-Z’'\-]*[”"]|(?:de|van|von|der|da|del|di|la|le|du|St\.)(?= [A-Z]))`;
+
+  // Photo captions and name lists (In Memoriam) follow their own layout, so the bold rule skips them.
+  // A caption is a short paragraph with a class year that doesn't end like a sentence, or opens like
+  // a caption ("Pictured", "Back row"). A list is a paragraph that is mostly names with class years.
+  function captionOrList(body, at) {
+    const ls = body.lastIndexOf("\n", at) + 1;
+    let le = body.indexOf("\n", at); if (le < 0) le = body.length;
+    const line = body.slice(ls, le).trim();
+    const words = line.split(/\s+/).length;
+    const years = (line.match(/[’'‘]\d{2}\b/g) || []).length;
+    if (/^(?:Pictured|Back row|Front row|Top row|Middle row|From left|L to R|Left to right|Above|Below|In Memoriam)\b/i.test(line)) return true;
+    if (words < 40 && years && !/[.!?”"]$/.test(line)) return true;
+    if (years >= 4 && years * 4 >= words) return true;
+    return false;
+  }
+
+  rule({
+    id: "bold-names",
+    name: "Bold alumni on first mention",
+    group: "Style",
+    explain: "Bold each alum’s name the first time it appears in a class year section. For a member of the class being reported on, bold the name and leave off the class year.",
+    find(t, opts) {
+      const out = [];
+      const bold = (opts && opts.bold) || [];
+      const isBold = (a, b) => { for (let i = a; i < b; i++) if (/\S/.test(t[i]) && !bold[i]) return false; return b > a; };
+      for (const sec of sections(t)) {
+        const body = t.slice(sec.start, sec.end);
+        const yy = (sec.label.match(/^(?:[’'‘]?(\d{2})|(?:19|20)(\d{2}))$/) || []).slice(1).find(Boolean);
+        const names = new Map(); // name → first index (relative to section) where it appears with a class year
+        // A name followed by a class year: "Amy Hollander ’87", "Donald (Charlie) Weinberg ’55".
+        for (const m of matches(new RegExp(String.raw`((?:${NAME_TOKEN} ){1,5})(?:Jr\.,? |Sr\.,? |I{2,3},? |IV,? )?(?<!P)[’'‘](\d{2})(?![\ds\w])`, "g"), body)) {
+          let toks = m[1].trim().split(" ");
+          // A word of three or more letters ending in a period ends a sentence, so the name starts after it.
+          const cut = toks.map((w) => /^[A-Za-z’'-]{3,}\.$/.test(w) && !/^(?:Jr|Sr|St)\.$/.test(w)).lastIndexOf(true);
+          if (cut >= 0) toks = toks.slice(cut + 1);
+          while (toks.length && NOT_NAME.has(toks[0].replace(/[.’']/g, ""))) toks.shift();
+          if (toks.length < 2) continue;
+          const name = toks.join(" ");
+          const caption = captionOrList(body, m.index);
+          if (!names.has(name)) names.set(name, { caption });
+          // Member of the class being reported on: no class year.
+          if (yy && m[2] === yy && !caption) {
+            const ys = m.index + m[0].length - 3;
+            out.push(issue(this.id, sec.start + ys - 1, body.slice(ys - 1, ys + 3), "", `${name} is in the Class of ’${yy}, the class this section reports on, so leave off the class year.`));
+          }
+        }
+        // Names already bolded somewhere in the section count too.
+        let i = 0;
+        while (i < body.length) {
+          if (!bold[sec.start + i] || !/[A-Z]/.test(body[i])) { i++; continue; }
+          let j = i;
+          while (j < body.length && (bold[sec.start + j] || body[j] === " ") && body[j] !== "\n") j++;
+          const run = body.slice(i, j).trim().replace(/[,:;.]$/, "");
+          const toks = run.split(" ");
+          if (toks.length >= 2 && toks.length <= 5 && toks.every((w) => new RegExp(`^${NAME_TOKEN}$`).test(w)) && !names.has(run)) names.set(run, { caption: false });
+          i = j + 1;
+        }
+        for (const [name, info] of names) {
+          if (info.caption) continue;
+          const esc = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const first = new RegExp(`(?<![\\w’'])${esc}(?![\\w])`).exec(body);
+          if (!first) continue;
+          const a = sec.start + first.index, b = a + name.length;
+          if (isBold(a, b)) continue;
+          if (captionOrList(body, first.index)) continue;
+          const o = issue(this.id, a, name, undefined, "First mention of this alum in the section: bold the name.");
+          o.format = "bold";
+          out.push(o);
+        }
       }
       return out;
     },
@@ -678,7 +801,7 @@
       if (skip.has(r.id)) continue;
       if (r.optional && !opts.includeOptional) continue;
       try {
-        issues.push(...r.find(text));
+        issues.push(...r.find(text, opts));
       } catch (e) {
         if (typeof console !== "undefined") console.error(`rule ${r.id} failed`, e);
       }
@@ -710,7 +833,25 @@
     return out;
   }
 
-  const api = { RULES, check, applyFixes, sections, WORD_LIMIT };
+  // Rich version: carries a per-character bold mask through the fixes and applies bold fixes.
+  // New characters take the bold of the text they replace.
+  function applyFixesRich(text, bold, chosen) {
+    let mask = Array.from({ length: text.length }, (_, i) => (bold && bold[i] ? 1 : 0));
+    for (const x of chosen) if (x.format === "bold") for (let i = x.start; i < x.end; i++) mask[i] = 1;
+    const list = chosen.filter((x) => x.fix !== undefined).sort((a, b) => b.start - a.start);
+    let out = text;
+    let floor = Infinity;
+    for (const x of list) {
+      if (x.end > floor) continue;
+      const b = mask[x.start] ?? mask[x.start - 1] ?? 0;
+      out = out.slice(0, x.start) + x.fix + out.slice(x.end);
+      mask = mask.slice(0, x.start).concat(Array(x.fix.length).fill(b), mask.slice(x.end));
+      floor = x.start;
+    }
+    return { text: out, bold: mask };
+  }
+
+  const api = { RULES, check, applyFixes, applyFixesRich, sections, WORD_LIMIT };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.ClassNotesChecker = api;
 })(typeof window !== "undefined" ? window : globalThis);

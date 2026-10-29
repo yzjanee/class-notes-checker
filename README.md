@@ -7,15 +7,16 @@ A style guide and an automated checker for alumni Class Notes submissions to the
 
 ## Using the checker
 
-Open `index.html` in a browser. No install, account or internet is needed, and the text you paste never leaves the page.
+Use it at **https://yzjanee.github.io/class-notes-checker/**, or open `index.html` in a browser. No install or account is needed, and the text you paste never leaves the page.
 
-1. Paste the Class Notes. Keep each class year on its own line (for example `57`) so the 2,000-word limit is checked per class.
+1. Paste the Class Notes straight from Google Docs or Word. Paragraphs and bold carry over. Keep each class year on its own line (for example `57`) so the 2,000-word limit is checked per class.
 2. Click **Check**. Highlights are color-coded:
    - Yellow: mechanical rules.
    - Blue: style rules.
    - Purple: needs an editor's judgment, such as future-tense events.
 3. Click a highlight, or press `j` / `k` to step through them. Press `a` to accept a fix and `i` to ignore it. **Accept all like this** applies one rule everywhere it appears.
-4. Click **Copy corrected text**, or **Edit text** to keep working with your accepted fixes applied.
+4. Click **Copy corrected text** and paste it back into Google Docs or Word: bold and paragraph breaks come with it. **Edit text** takes you back to the editable text with your accepted fixes applied.
+5. Click **New batch** to clear everything and start on the next set. It asks first if you have accepted fixes you haven't copied yet.
 
 Click a rule in the sidebar to hide its flags. The **Still check by hand** list covers what plain text can't show, such as bolding names on first mention.
 

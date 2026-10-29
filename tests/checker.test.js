@@ -115,3 +115,93 @@ test("date missing both commas gets both", () => {
 test("major after a degree is lowercased", () => {
   assert.equal(fixed("He earned his Ph.D. in History at Rutgers.", "majors"), "He earned his Ph.D. in history at Rutgers.");
 });
+
+// Feedback from the Chronicle editor, Oct. 29, 2026.
+test("ellipses are not doubled punctuation", () => {
+  for (const s of ["I was there ... but left.", "I was there... but left.", "So . . . I apologize.", "end of story . . .", "Well...,", "word,... then", "It ended…. Then", "wait.... Then"]) {
+    assert.deepEqual(flags(s, "typos").map((i) => i.text), [], s);
+  }
+  const two = flags("wait.. then", "typos");
+  assert.equal(two.length, 1);
+  assert.equal(two[0].fix, undefined, "two periods could be a short ellipsis, so no automatic fix");
+});
+
+test("spaces around a dash are not treated as sentence spacing", () => {
+  assert.deepEqual(flags("It was 70 — in my case, 80.", "double-space"), []);
+  assert.deepEqual(flags("He retired—finally.", "extra-space"), []);
+  const f = flags("He retired —  finally.");
+  assert.deepEqual(f.map((i) => i.rule), ["extra-space"]);
+  assert.equal(fixed("He retired —  finally.", "extra-space"), "He retired — finally.");
+});
+
+test("non-breaking spaces count as spaces", () => {
+  assert.equal(fixed("First.\u00a0 Second.", "double-space"), "First. Second.");
+});
+
+test("straight quote right after a dash closes the quote", () => {
+  assert.deepEqual(flags('He said, "I was going to—" and stopped.', "quotes"), []);
+});
+
+test("Reunion Weekend lowercases both words", () => {
+  assert.equal(fixed("See you at Reunion Weekend in June.", "reunion"), "See you at reunion weekend in June.");
+  assert.equal(fixed("See you at reunion Weekend in June.", "reunion"), "See you at reunion weekend in June.");
+  assert.deepEqual(flags("Our 50th Reunion Weekend is in June.", "reunion"), []);
+  assert.deepEqual(flags("See you at reunion weekend.", "reunion"), []);
+});
+
+test("straight double quotes nested in a straight-quoted passage are flagged", () => {
+  const f = flags('He wrote: "I wouldn\'t call it a "cream puff," but it runs."', "quotes");
+  assert.equal(f.length, 1);
+  assert.match(f[0].note, /single quotes/);
+});
+
+// Bold is passed as a per-character mask; boldMask marks the given substrings bold.
+function boldMask(text, ...parts) {
+  const m = Array(text.length).fill(0);
+  for (const p of parts) { const i = text.indexOf(p); for (let k = i; k < i + p.length; k++) m[k] = 1; }
+  return m;
+}
+
+test("bold-names: first mention of an alum with a class year must be bold", () => {
+  const t = "57\nPat Example\n\nI had lunch with Amy Hollander ’87 and her husband. Amy Hollander ’87 says hello.";
+  const f = check(t, { bold: boldMask(t) }).issues.filter((i) => i.rule === "bold-names");
+  assert.equal(f.length, 1);
+  assert.equal(f[0].text, "Amy Hollander");
+  assert.equal(f[0].format, "bold");
+  assert.equal(t.indexOf("Amy Hollander"), f[0].start, "flags the first mention, not the second");
+  const ok = check(t, { bold: boldMask(t, "Amy Hollander") }).issues.filter((i) => i.rule === "bold-names");
+  assert.deepEqual(ok, []);
+});
+
+test("bold-names: a name bolded later but not on first mention is flagged", () => {
+  const t = "57\nPat Example\n\nChris Sample called. Later, Chris Sample sent photos.";
+  const second = t.lastIndexOf("Chris Sample");
+  const m = Array(t.length).fill(0); for (let k = second; k < second + 12; k++) m[k] = 1;
+  const f = check(t, { bold: m }).issues.filter((i) => i.rule === "bold-names");
+  assert.equal(f.length, 1);
+  assert.equal(f[0].start, t.indexOf("Chris Sample"));
+});
+
+test("bold-names: drop the class year for a member of the class being reported on", () => {
+  const t = "57\nPat Example\n\nWe heard from Chris Sample ’57, who is well.";
+  const f = check(t, { bold: boldMask(t, "Chris Sample") }).issues.filter((i) => i.rule === "bold-names");
+  assert.equal(f.length, 1);
+  assert.equal(applyFixes(t, f), "57\nPat Example\n\nWe heard from Chris Sample, who is well.");
+});
+
+test("bold-names: leading words and photo captions are skipped", () => {
+  const t = "87\nPat Example\n\nYesterday Amy Hollander ’85 visited.\nAmy Hollander ’85 and Karen Newman ’87 at the World Tour";
+  const f = check(t, { bold: boldMask(t) }).issues.filter((i) => i.rule === "bold-names");
+  assert.deepEqual(f.map((i) => i.text), ["Amy Hollander"]);
+});
+
+test("applyFixesRich keeps bold through text fixes and applies bold fixes", () => {
+  const t = "Amy Hollander ‘87 lives in Newark, NJ.";
+  const issues = check(t, { bold: boldMask(t) }).issues;
+  const r = require("../checker.js").applyFixesRich(t, boldMask(t), issues);
+  assert.equal(r.text, "Amy Hollander ’87 lives in Newark, N.J.");
+  assert.equal(r.bold.length, r.text.length);
+  assert.equal(r.text.slice(0, 13), "Amy Hollander");
+  assert.ok(r.bold.slice(0, 13).every(Boolean));
+  assert.ok(!r.bold[14]);
+});

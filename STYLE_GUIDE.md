@@ -25,7 +25,7 @@ The **Checker** column says what the [Class Notes Checker](index.html) does with
 | **City shortcuts.** NYC and LA may be abbreviated. | New York City | NYC | Optional suggestion (off by default) |
 | **Word count.** Flag any submission over 2,000 words. | | | Auto: the checker warns per class-year section |
 | **Degrees.** Abbreviated degrees take capitals and periods. Spelled-out degrees and Latin honors are lowercase. | PhD · BA · Master's degree · Magna Cum Laude | Ph.D. · B.A. · master’s degree · magna cum laude | Auto |
-| **Reunion.** Lowercase it in general. Capitalize Alumni Weekend and a specific numbered Reunion. | See you at our Reunion · our 50th reunion · alumni weekend | See you at our reunion · our 50th Reunion · Alumni Weekend | Auto |
+| **Reunion.** Lowercase it in general. Capitalize Alumni Weekend and a specific numbered Reunion. | See you at our Reunion · our 50th reunion · alumni weekend · Reunion Weekend | See you at our reunion · our 50th Reunion · Alumni Weekend · reunion weekend | Auto |
 
 ### AP state abbreviations (use with a city)
 
@@ -37,7 +37,7 @@ Ala., Ariz., Ark., Calif., Colo., Conn., Del., Fla., Ga., Ill., Ind., Kan., Ky.,
 
 | Rule | Wrong | Right | Checker |
 | --- | --- | --- | --- |
-| **Bold alumni on first mention.** Bold each alum’s name the first time it appears in a class year section. For a member of the class being reported on, bold the name and leave off the class year. | Bill Daly ’55 (in the ’55 column) | **Bill Daly** | By hand |
+| **Bold alumni on first mention.** Bold each alum’s name the first time it appears in a class year section. For a member of the class being reported on, bold the name and leave off the class year. | Bill Daly ’55 (in the ’55 column) | **Bill Daly** | Auto for names written with a class year, and for names bolded later but not the first time. Drops the class year for the class being reported on. Skips photo captions and name lists. Classmates named without a year: By hand |
 | **No serial (Oxford) comma.** Leave out the comma before the conjunction in a simple series. Keep it only when the meaning would be unclear without it. | red, white, and blue | red, white and blue | Flags (check each one) |
 | **Publication titles.** Put books, songs, movies, TV shows and albums in quotation marks, not italics. Newspapers and magazines take neither quotes nor italics. | *To Kill a Mockingbird* · 'The Long Way Home' · “The New York Times” | “To Kill a Mockingbird” · “The Long Way Home” · The New York Times | Partial: flags single-quoted titles and quoted newspaper names. Italics: By hand |
 | **Multi-paragraph quotations.** When one speaker’s quote runs several paragraphs, start each paragraph with an opening quote mark. Put a closing mark only at the end of the last paragraph. | A paragraph that continues a quote but has no opening mark | “First paragraph… ⏎ “Second paragraph.” | Flags a quote that is never closed and isn't continued |
@@ -59,7 +59,8 @@ Class Notes are due about two months before the issue comes out. An event descri
 
 The guide doesn't list these, but they come up in Class Notes and the checker flags them:
 
-- Repeated words (the the), a space before punctuation, and doubled punctuation.
+- Repeated words (the the), a space before punctuation, and doubled punctuation. Ellipses (`...`, `…`, `. . .`) are left alone; two periods (`..`) are flagged for the editor to decide.
+- Extra spaces between words, including next to a dash.
 - A period in the middle of a sentence where a comma belongs: his wife, Carol. are doing well → his wife, Carol, are doing well.
 - e-mail → email (AP).
 
