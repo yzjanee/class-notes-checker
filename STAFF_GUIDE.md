@@ -37,10 +37,10 @@ The rules live in two places: the [style guide](STYLE_GUIDE.md), which people re
 **To request a change** to a rule, a new rule, or a fix for a wrong flag:
 
 1. Write down the rule, plus one wrong → right example. For a wrong flag, copy the sentence it flagged.
-2. Send it to **[maintainer name, email]**, or add it to the **[shared "Rule requests" doc]**.
+2. Email it to **Jane Wei** at **ywei-27@peddie.org**.
 3. The maintainer updates the style guide and the checker together, adds your example as a test, and tells you when it's live. The site updates about a minute after a change is saved.
 
-**Who maintains it:** Jane Wei and Megan [last name] through [month, year]. Before then, we will move the project to a Peddie account or add a staff member as an owner, and we will show the next maintainer (a CS student or staff member) how to make an update. No paid accounts or services are needed.
+**Who maintains it:** Jane Wei and Megan Cheng, until they graduate on May 31, 2027. Before then, we will move the project to a Peddie account or add a staff member as an owner, and we will show the next maintainer (a CS student or staff member) how to make an update. No paid accounts or services are needed.
 
 ## Planned update: AI tone checker (waiting on the Chronicle's decision)
 
