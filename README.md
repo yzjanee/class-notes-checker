@@ -3,7 +3,9 @@
 A style guide and an automated checker for alumni Class Notes submissions to the *Peddie Chronicle*.
 
 1. **[Style guide](STYLE_GUIDE.md):** the master proofreading document. It covers spelling, punctuation, state abbreviations and AP-style formatting (dates, numbers, titles, class-year apostrophes), with a wrong → right example for each rule.
-2. **[Checker](index.html):** paste in a batch of Class Notes to see every likely error highlighted, with the rule it breaks and a suggested fix. Accept or ignore each one, then copy out the corrected text. The editor makes the final call.
+2. **[Checker](https://yzjanee.github.io/class-notes-checker/):** paste in a batch of Class Notes to see every likely error highlighted, with the rule it breaks and a suggested fix. Accept or ignore each one, then copy out the corrected text. The editor makes the final call.
+
+**Chronicle staff:** start with the one-page **[Staff Guide](STAFF_GUIDE.md)**. It covers how to use the checker, what to check by hand and how to request a rule change.
 
 ## Using the checker
 
@@ -36,6 +38,16 @@ As a test, the checker was run on two published issues: Spring 2025 (about 22,00
 | Everything else (ages, numbers, degrees, date ordinals, typos, serial commas) | 9 | 10 |
 
 Class-year apostrophes appeared mostly in photo captions. The family-commas count in Summer 2026 suggests that rule isn't applied consistently.
+
+## Planned update: AI tone checker
+
+The Chronicle is deciding whether to add an optional AI step that flags tone and possibly sensitive news (such as deaths or illness) for the editor to review. If it goes ahead:
+
+- It will be **off by default**, so the rule checker keeps all text in the browser.
+- It needs **alumni office approval** first, because turning it on sends a batch's text to an AI service.
+- It **only suggests** and never changes text.
+
+Nothing has been built yet. See the [Staff Guide](STAFF_GUIDE.md#planned-update-ai-tone-checker-waiting-on-the-chronicles-decision).
 
 ## Development
 
